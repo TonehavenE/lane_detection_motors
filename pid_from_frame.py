@@ -29,13 +29,10 @@ def line_from_frame(
     gray = to_gray(sliced)
     blurred = to_blurred(gray, kernel_size=kernel_size)
     bw = to_bw(blurred, t=bw_threshold)
-    # cv2.imwrite("testing/bw.jpg", bw)
 
     # Edge/line detection
     edges = find_edges(bw, t1=edges_t1, t2=edges_t2)
-    # cv2.imwrite("testing/edges.jpg", edges)
     lines = find_lines(edges, threshold=lines_threshold, min_line_length=min_line_length, max_line_gap=max_line_gap)
-    # cv2.imwrite("testing/lines.jpg", draw_lines(frame, lines, offset=True))
     if len(lines) > 1:
         grouped_lines = group_lines(
             lines,
@@ -46,22 +43,38 @@ def line_from_frame(
         merged_lines = merge_lines(
             grouped_lines, height, width
         )  # merge groups of lines
-        # cv2.imwrite("testing/merged.jpg", draw_lines(frame, merged_lines, offset=True))
         # Lane Detection
-        print(merged_lines)
         lanes = detect_lanes(bw, merged_lines, lanes_x_tolerance, lanes_y_tolerance, lanes_darkness_threshold)
-        print(lanes)
-        # cv2.imwrite("testing/lanes.jpg", draw_lanes(frame, lanes, offset=True))
         # Lane picking
         center_lines = merge_lane_lines(lanes, height)  # find the center of each lane
         center_line = pick_center_line(center_lines, width)  # find the closest lane
+        print(f"{center_lines = }, {center_line = }")
+
+        cv2.imwrite("testing/bw.jpg", bw)
+        cv2.imwrite("testing/edges.jpg", edges)
+        cv2.imwrite("testing/lines.jpg", draw_lines(frame, lines, offset=True))
+        cv2.imwrite("testing/merged.jpg", draw_lines(frame, merged_lines, offset=True))
+        cv2.imwrite("testing/lanes.jpg", draw_lanes(frame, lanes, offset=True))
+        cv2.imwrite("testing/center.jpg", draw_lines(frame, center_lines, offset=True))
 
     return center_line
 
 
 def pid_from_line(
-    center_line, lateral_pid, longitudinal_pid, yaw_pid, width, output_path=""
+    center_line, lateral_pid, longitudinal_pid, yaw_pid, width
 ):
+    """Returns PID output from a center line.
+
+    Args:
+        center_line (Line): the center line
+        lateral_pid (PID): the lateral PID
+        longitudinal_pid (PID): the straight PID
+        yaw_pid (PID): the yaw PID
+        width (the image width): width
+
+    Returns:
+        (longitudinal, lateral, yaw): longitudinal, lateral, yaw values
+    """
     longitudinal = 0
     lateral = 0
     yaw = 0

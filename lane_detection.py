@@ -291,6 +291,10 @@ def merge_lines(
             for line in x_group:
                 x_list.extend([line.x1, line.x2])
                 y_list.extend([line.y1, line.y2])
+
+            print(f"{x_list = }, {y_list = }")
+            print()
+
             if np.mean(x_list) == 0:
                 m = 100000
                 b = np.mean(x_list)
@@ -315,7 +319,7 @@ def merge_lines(
                     y_list[i] = m * width + b
 
             # Finally, create and append the line segments.
-            merged_line = Line(x_list[0], y_list[0], x_list[1], y_list[1])
+            merged_line = Line(x_list[0], y_list[0], x_list[1], y_list[1], image_height = height)
             merged_lines.append(merged_line)
 
     merged_lines.sort(key=lambda x: x.x_intercept)  # sort by x_intercept
