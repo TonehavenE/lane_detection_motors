@@ -291,7 +291,11 @@ def merge_lines(
             for line in x_group:
                 x_list.extend([line.x1, line.x2])
                 y_list.extend([line.y1, line.y2])
-            m, b = np.polyfit(x_list, y_list, 1)  # line of best fit for the points
+            if np.mean(x_list) == 0:
+                m = 100000
+                b = np.mean(x_list)
+            else:
+                m, b = np.polyfit(x_list, y_list, 1)  # line of best fit for the points
 
             # y = mx + b
             # (y - b) / m = x
@@ -342,7 +346,7 @@ def pixels_between(
     x_list.sort()
     y_list.sort()
     line = Line(x_list[0], y_list[0], x_list[1], y_list[1])
-    if line.length() > 5:
+    if line.length() > 3:
         rr, cc = line.pixels_between()
         average_value = np.average(img[cc, rr])
         return average_value
