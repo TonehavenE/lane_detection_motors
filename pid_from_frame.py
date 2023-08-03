@@ -5,7 +5,21 @@ from lane_following import *
 from pid import *
 
 
-def line_from_frame(frame: np.ndarray) -> Line:
+def line_from_frame(
+    frame: np.ndarray,
+    kernel_size=7,
+    bw_threshold=70,
+    edges_t1=50,
+    edges_t2=100,
+    lines_threshold=50,
+    min_line_length=100,
+    max_line_gap=20,
+    slope_tolerance=0.1,
+    x_intercept_tolerance=50,
+    lanes_x_tolerance=25,
+    lanes_y_tolerance=25,
+    lanes_darkness_threshold=10,
+) -> Line:
     center_line = None
 
     # Process image
@@ -13,23 +27,31 @@ def line_from_frame(frame: np.ndarray) -> Line:
     height = sliced.shape[0]
     width = sliced.shape[1]
     gray = to_gray(sliced)
-    blurred = to_blurred(gray)
-    bw = to_bw(blurred)
+    blurred = to_blurred(gray, kernel_size=kernel_size)
+    bw = to_bw(blurred, t=bw_threshold)
+    cv2.imwrite("testing/bw.jpg", bw)
 
     # Edge/line detection
-    edges = find_edges(bw)
-    lines = find_lines(edges)
+    edges = find_edges(bw, t1=edges_t1, t2=edges_t2)
+    cv2.imwrite("testing/edges.jpg", edges)
+    lines = find_lines(edges, threshold=lines_threshold, min_line_length=min_line_length, max_line_gap=max_line_gap)
+    cv2.imwrite("testing/lines.jpg", draw_lines(frame, lines, offset=True))
     if len(lines) > 1:
         grouped_lines = group_lines(
-            lines, height, slope_tolerance=0.1, x_intercept_tolerance=50
+            lines,
+            height,
+            slope_tolerance=slope_tolerance,
+            x_intercept_tolerance=x_intercept_tolerance,
         )  # group lines
         merged_lines = merge_lines(
             grouped_lines, height, width
         )  # merge groups of lines
-
+        cv2.imwrite("testing/merged.jpg", draw_lines(frame, merged_lines, offset=True))
         # Lane Detection
-        lanes = detect_lanes(bw, merged_lines, 500, 200, 10)
-
+        print(merged_lines)
+        lanes = detect_lanes(bw, merged_lines, lanes_x_tolerance, lanes_y_tolerance, lanes_darkness_threshold)
+        print(lanes)
+        cv2.imwrite("testing/lanes.jpg", draw_lanes(frame, lanes, offset=True))
         # Lane picking
         center_lines = merge_lane_lines(lanes, height)  # find the center of each lane
         center_line = pick_center_line(center_lines, width)  # find the closest lane
@@ -37,7 +59,9 @@ def line_from_frame(frame: np.ndarray) -> Line:
     return center_line
 
 
-def pid_from_line(center_line, lateral_pid, longitudinal_pid, yaw_pid, width, output_path=""):
+def pid_from_line(
+    center_line, lateral_pid, longitudinal_pid, yaw_pid, width, output_path=""
+):
     longitudinal = 0
     lateral = 0
     yaw = 0
@@ -46,9 +70,9 @@ def pid_from_line(center_line, lateral_pid, longitudinal_pid, yaw_pid, width, ou
             center_line, width
         )
 
-        longitudinal = longitudinal_pid(longitudinal_error)
-        lateral = lateral_pid(lateral_error)
-        yaw = yaw_pid(yaw_error)
+        longitudinal = longitudinal_pid.update(longitudinal_error)
+        lateral = lateral_pid.update(lateral_error)
+        yaw = yaw_pid.update(yaw_error)
 
     else:
         # we didn't find anything, so just turn to try and find something
@@ -79,6 +103,7 @@ def draw_frame(frame, center_line, longitudinal, lateral, yaw):
         cv2.LINE_AA,
     )
     return frame
+
 
 def process_frame(
     frame, lateral_pid, longitudinal_pid, yaw_pid, output_path=""
@@ -133,7 +158,7 @@ def process_frame(
     else:
         # we didn't find anything, so just turn to try and find something
         yaw = yaw_pid(np.pi / 4)  # turn 45 degrees
-    if output_path is not "":
+    if output_path != "":
         yaw_degs = np.rad2deg(yaw_error)
         if longitudinal == 100:
             text = f"Move forward: {longitudinal:.2f} | Turn: {yaw_degs:.2f}"

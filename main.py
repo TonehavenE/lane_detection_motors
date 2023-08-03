@@ -5,6 +5,7 @@ from pid import PID
 from video import Video
 from bluerov_interface import BlueROV
 from pymavlink import mavutil
+import video_maker
 
 # TODO: import your processing functions
 from pid_from_frame import *
@@ -13,6 +14,9 @@ print("Main started!")
 
 # Create the video objectE
 video = Video()
+FPS = 2
+RC_SLEEP = 0.1
+
 # Create the PID object
 PIDLateral = PID(50, 0, -6, 100)
 PIDLongitudinal = PID(50, 0, 0, 100)
@@ -25,7 +29,7 @@ bluerov = BlueROV(mav_connection=mav_comn)
 output_path = "frames/frame"  # {n}.jpg
 
 window_frame_count = 11  # the number of center lines to store for calculating median
-max_misses = 6 # the number of frames without receiving a center line before the robot starts to spin
+max_misses = 6  # the number of frames without receiving a center line before the robot starts to spin
 
 frame = None
 frame_available = Event()
@@ -52,11 +56,12 @@ def _get_frame():
         while True:
             if video.frame_available():
                 frame = video.frame()
+                print("frame found")
                 # cv2.imwrite("camera_stream.jpg", frame)
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 if type(frame) == np.ndarray:
                     try:
-                        center_line = line_from_frame(frame)                        
+                        center_line = line_from_frame(frame)
                         center_lines.append(center_line)
                         if len(center_lines) > window_frame_count:
                             center_lines.pop(0)
@@ -66,17 +71,42 @@ def _get_frame():
                             yaw_power = 25  # %
                             lateral_power = 0
                             longitudinal_power = 0
-                            continue
+                            # continue
                         else:
-                            good_lines = list(filter(lambda line: line is not None, center_lines))
-                            good_lines.sort(key=lambda x: x.slope)
-                            middle_line = good_lines[len(good_lines)//2]
-                            longitudinal_power, lateral_power, yaw_power = pid_from_line(middle_line, PIDLateral, PIDLongitudinal, PIDYaw, frame.shape[1])
-                            if output_path != "":
-                                cv2.imwrite(f"{output_path}{count}.jpg", draw_frame(frame, middle_line, longitudinal_power, lateral_power, yaw_power))
+                            good_lines = list(
+                                filter(lambda line: line is not None, center_lines)
+                            )
+                            if len(good_lines) > 1:
+                                print(good_lines)
+                                print(len(good_lines) // 2)
+                                good_lines.sort(key=lambda x: x.slope)
+                                middle_line = good_lines[len(good_lines) // 2]
+                                (
+                                    longitudinal_power,
+                                    lateral_power,
+                                    yaw_power,
+                                ) = pid_from_line(
+                                    middle_line,
+                                    PIDLateral,
+                                    PIDLongitudinal,
+                                    PIDYaw,
+                                    frame.shape[1],
+                                )
+                                # if output_path != "":
+                                #     cv2.imwrite(
+                                #         f"{output_path}{count}.jpg",
+                                #         draw_frame(
+                                #             frame,
+                                #             middle_line,
+                                #             longitudinal_power,
+                                #             lateral_power,
+                                #             yaw_power,
+                                #         ),
+                                #     )
                         print(f"{yaw_power = }")
                         print(f"{longitudinal_power = }")
                         print(f"{lateral_power = }")
+                        cv2.imwrite(f"frames/frame{count}.jpg", video_maker.render_frame(frame))
                     except Exception as e:
                         print(f"caught: {e}")
                         yaw_power = 0
@@ -86,7 +116,7 @@ def _get_frame():
                 print(frame.shape)
                 count += 1
 
-                sleep(0.1)
+                sleep(1 / FPS)
     except KeyboardInterrupt:
         return
 
@@ -101,11 +131,14 @@ def _send_rc():
 
     while True:
         bluerov.arm()
+
         mav_comn.set_mode(19)  # Remember to comment this out depending on the robot!
+        # --- ^^^ CHANGE THIS ^^^ --- 19 for old, 0 for new
+
         bluerov.set_longitudinal_power(int(longitudinal_power))
         bluerov.set_lateral_power(int(lateral_power))
         bluerov.set_yaw_rate_power(int(yaw_power))
-        sleep(0.2)
+        sleep(RC_SLEEP)
 
 
 def main():
@@ -114,8 +147,8 @@ def main():
     video_thread.start()
 
     # # Start the RC thread
-    rc_thread = Thread(target=_send_rc)
-    rc_thread.start()
+    # rc_thread = Thread(target=_send_rc)
+    # rc_thread.start()
 
     # Main loop
     try:
@@ -123,7 +156,7 @@ def main():
             mav_comn.wait_heartbeat()
     except KeyboardInterrupt:
         video_thread.join()
-        rc_thread.join()
+        # rc_thread.join()
         bluerov.set_lights(False)
         bluerov.disarm()
         print("Exiting...")

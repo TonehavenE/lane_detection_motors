@@ -45,7 +45,7 @@ def render_frame(frame):
             text = f"Don't move"
 
         # Drawing
-        # frame = draw_lanes(frame, lanes, offset=True)
+        frame = draw_lanes(frame, lanes, offset=True)
         frame = draw_lines(frame, [center_line], (0, 0, 255), offset=True)
         frame = cv2.putText(frame, text, (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (255,255,255), 2, cv2.LINE_AA)
     return frame

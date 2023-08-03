@@ -12,7 +12,7 @@ class BlueROV:
         self.mav_connection.arducopter_arm()
         self.mav_connection.motors_armed_wait()
         print("armed!")
-        self.set_lights(False)
+        self.set_lights(True)
         self.state = "armed"
 
     def disarm(self):
