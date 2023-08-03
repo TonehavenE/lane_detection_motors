@@ -89,7 +89,7 @@ def pid_from_line(
 
     else:
         # we didn't find anything, so just turn to try and find something
-        yaw = yaw_pid(np.pi / 4)  # turn 45 degrees
+        yaw = yaw_pid.update(np.pi / 4)  # turn 45 degrees
 
     return (longitudinal, lateral, yaw)
 
