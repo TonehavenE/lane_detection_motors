@@ -61,14 +61,14 @@ def _get_frame():
                 # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 if type(frame) == np.ndarray:
                     try:
-                        center_line = line_from_frame(frame)
+                        center_line = line_from_frame(frame[20 : -1, 20 : -1], x_intercept_tolerance=25, lanes_x_tolerance = 300, lanes_y_tolerance = 100, lanes_darkness_threshold=10)
                         center_lines.append(center_line)
                         if len(center_lines) > window_frame_count:
                             center_lines.pop(0)
 
                         if center_lines.count(None) > 5:
                             print("No lines found in last 5 images. ")
-                            yaw_power = 25  # %
+                            yaw_power = 10  # %
                             lateral_power = 0
                             longitudinal_power = 0
                             # continue
@@ -77,8 +77,8 @@ def _get_frame():
                                 filter(lambda line: line is not None, center_lines)
                             )
                             if len(good_lines) > 1:
-                                print(good_lines)
-                                print(len(good_lines) // 2)
+                                # print(good_lines)
+                                # print(len(good_lines) // 2)
                                 good_lines.sort(key=lambda x: x.slope)
                                 middle_line = good_lines[len(good_lines) // 2]
                                 (
@@ -92,17 +92,17 @@ def _get_frame():
                                     PIDYaw,
                                     frame.shape[1],
                                 )
-                                # if output_path != "":
-                                #     cv2.imwrite(
-                                #         f"{output_path}{count}.jpg",
-                                #         draw_frame(
-                                #             frame,
-                                #             middle_line,
-                                #             longitudinal_power,
-                                #             lateral_power,
-                                #             yaw_power,
-                                #         ),
-                                #     )
+                                if output_path != "":
+                                    cv2.imwrite(
+                                        f"{output_path}{count}.jpg",
+                                        draw_frame(
+                                            frame,
+                                            middle_line,
+                                            longitudinal_power,
+                                            lateral_power,
+                                            yaw_power,
+                                        ),
+                                    )
                         print(f"{yaw_power = }")
                         print(f"{longitudinal_power = }")
                         print(f"{lateral_power = }")
@@ -147,8 +147,8 @@ def main():
     video_thread.start()
 
     # # Start the RC thread
-    # rc_thread = Thread(target=_send_rc)
-    # rc_thread.start()
+    rc_thread = Thread(target=_send_rc)
+    rc_thread.start()
 
     # Main loop
     try:
@@ -156,7 +156,7 @@ def main():
             mav_comn.wait_heartbeat()
     except KeyboardInterrupt:
         video_thread.join()
-        # rc_thread.join()
+        rc_thread.join()
         bluerov.set_lights(False)
         bluerov.disarm()
         print("Exiting...")

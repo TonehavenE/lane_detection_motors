@@ -98,12 +98,12 @@ def movement_from_line(
 
     if x_intercept > mid_right:
         # the lane center is right of the middle
-        lateral = ((x_intercept - mid) / width) * 100
+        lateral = ((x_intercept - mid) / width)
         longitudinal = 0
 
     elif x_intercept < mid_left:
         # the lane center is left of the middle
-        lateral = ((x_intercept - mid) / width) * 100
+        lateral = ((x_intercept - mid) / width)
         longitudinal = 0
 
     else:
