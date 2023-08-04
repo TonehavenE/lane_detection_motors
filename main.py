@@ -18,9 +18,9 @@ FPS = 5
 RC_SLEEP = 0.1
 
 # Create the PID object
-PIDLateral = PID(50, 0, -5, 100)
-PIDLongitudinal = PID(50, 0, 0, 100)
-PIDYaw = PID(30, 0, 0, 100)
+PIDLateral = PID(50, 0, -5, 100) # this will recieve values between -1 and 1.
+PIDLongitudinal = PID(50, 0, 0, 100) # this will recieve values between -1 and 1.
+PIDYaw = PID(15, 0, 0, 100) # this will recieve values between +- pi/2 radians
 # Create the mavlink connection
 mav_comn = mavutil.mavlink_connection("udpin:0.0.0.0:14550")
 # Create the BlueROV object
