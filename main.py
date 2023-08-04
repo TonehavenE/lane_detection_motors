@@ -6,23 +6,26 @@ from video import Video
 from bluerov_interface import BlueROV
 from pymavlink import mavutil
 import video_maker
+import depth_control
 
 # TODO: import your processing functions
 from pid_from_frame import *
 
 print("Main started!")
 
-# Create the video objectE
+# Create the video object
 video = Video()
 FPS = 5
-RC_SLEEP = 0.1
+RC_SLEEP = 0.0
 
 # Create the PID object
-PIDLateral = PID(50, 0, -5, 100) # this will recieve values between -1 and 1.
+PIDLateral = PID(35, 0.05, -5, 100) # this will recieve values between -1 and 1.
 PIDLongitudinal = PID(50, 0, 0, 100) # this will recieve values between -1 and 1.
-PIDYaw = PID(15, 0, 0, 100) # this will recieve values between +- pi/2 radians
+PIDYaw = PID(20, 0, -5, 100) # this will recieve values between +- pi/2 radians
+PIDVertical = PID(40, 0.00, -10, 100) # this will recieve error in meters
 # Create the mavlink connection
 mav_comn = mavutil.mavlink_connection("udpin:0.0.0.0:14550")
+master_id = mav_comn.mode_mapping()["MANUAL"] # The ID for MANUAL mode control. Some of the robots are weird.
 # Create the BlueROV object
 bluerov = BlueROV(mav_connection=mav_comn)
 # where to write frames to. If empty string, no photos are written!
@@ -38,6 +41,7 @@ frame_available.set()
 longitudinal_power = 0
 lateral_power = 0
 yaw_power = 0
+vertical_power = 0
 crop_x = slice(20, -1)
 crop_y = slice(20, -1)
 
@@ -78,26 +82,24 @@ def _get_frame():
                             yaw_power = 10  # %
                             lateral_power = 0 # %
                             longitudinal_power = 0 # %
-                            continue
-                        else:
-                            good_lines = list(
-                                filter(lambda line: line is not None, center_lines)
+                        good_lines = list(
+                            filter(lambda line: line is not None, center_lines)
+                        )
+                        if len(good_lines) > 0:
+                            good_lines.sort(key=lambda x: x.slope)
+                            middle_line = good_lines[len(good_lines) // 2]
+                            (
+                                longitudinal_power,
+                                lateral_power,
+                                yaw_power,
+                            ) = pid_from_line(
+                                middle_line,
+                                PIDLateral,
+                                PIDLongitudinal,
+                                PIDYaw,
+                                frame.shape[1],
                             )
-                            if len(good_lines) > 0:
-                                good_lines.sort(key=lambda x: x.slope)
-                                middle_line = good_lines[len(good_lines) // 2]
-                                (
-                                    longitudinal_power,
-                                    lateral_power,
-                                    yaw_power,
-                                ) = pid_from_line(
-                                    middle_line,
-                                    PIDLateral,
-                                    PIDLongitudinal,
-                                    PIDYaw,
-                                    frame.shape[1],
-                                )
-                                print("Found a line!")
+                            print("Found a line!")
                         print(f"{yaw_power = }")
                         print(f"{longitudinal_power = }")
                         print(f"{lateral_power = }")
@@ -108,7 +110,7 @@ def _get_frame():
                         lateral_power = 0
                         longitudinal_power = 0
 
-                print(frame.shape)
+                # print(frame.shape)
                 count += 1
 
                 sleep(1 / FPS)
@@ -127,14 +129,19 @@ def _send_rc():
     while True:
         bluerov.arm()
 
-        mav_comn.set_mode(19)  # Remember to comment this out depending on the robot!
-        # --- ^^^ CHANGE THIS ^^^ --- 19 for old, 0 for new
-
+        mav_comn.set_mode(master_id)
         bluerov.set_longitudinal_power(int(longitudinal_power))
         bluerov.set_lateral_power(int(lateral_power))
         bluerov.set_yaw_rate_power(int(yaw_power))
+        bluerov.set_vertical_power(int(vertical_power))
         sleep(RC_SLEEP)
 
+def _depth_control():
+    global vertical_power
+    while True:
+        depth_error = depth_control.get_depth_error(mav_comn, desired_depth=0.5)
+        vertical_power = PIDVertical.update(depth_error) 
+        print(f"{vertical_power = }")
 
 def main():
     # Start the video thread
@@ -142,8 +149,12 @@ def main():
     video_thread.start()
 
     # # Start the RC thread
-    # rc_thread = Thread(target=_send_rc)
-    # rc_thread.start()
+    rc_thread = Thread(target=_send_rc)
+    rc_thread.start()
+
+    # Start the Depth thread
+    depth_thread = Thread(targets=_depth_control)
+    depth_thread.start()
 
     # Main loop
     try:
@@ -151,7 +162,8 @@ def main():
             mav_comn.wait_heartbeat()
     except KeyboardInterrupt:
         video_thread.join()
-        # rc_thread.join()
+        rc_thread.join()
+        depth_thread.start()
         bluerov.set_lights(False)
         bluerov.disarm()
         print("Exiting...")

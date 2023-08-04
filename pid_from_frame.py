@@ -48,7 +48,7 @@ def line_from_frame(
         # Lane picking
         center_lines = merge_lane_lines(lanes, height)  # find the center of each lane
         center_line = pick_center_line(center_lines, width)  # find the closest lane
-        print(f"{center_lines = }, {center_line = }")
+        # print(f"{center_lines = }, {center_line = }")
 
         # cv2.imwrite("testing/bw.jpg", bw)
         # cv2.imwrite("testing/edges.jpg", edges)
@@ -80,7 +80,7 @@ def pid_from_line(
     yaw = 0
     if center_line is not None:
         (longitudinal_error, lateral_error, yaw_error) = error_from_line(
-            center_line, width
+            center_line, width, angle_tol=2
         )
 
         longitudinal = longitudinal_pid.update(longitudinal_error)

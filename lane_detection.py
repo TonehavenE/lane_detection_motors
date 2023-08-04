@@ -292,9 +292,6 @@ def merge_lines(
                 x_list.extend([line.x1, line.x2])
                 y_list.extend([line.y1, line.y2])
 
-            print(f"{x_list = }, {y_list = }")
-            print()
-
             if np.mean(x_list) == 0:
                 m = 100000
                 b = np.mean(x_list)

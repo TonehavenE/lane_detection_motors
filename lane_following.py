@@ -4,7 +4,7 @@ import numpy as np
 
 from Line import *
 
-forward_power = 0.3 # 30%
+forward_power = 0.6 # 30%
 
 def merge_lane_lines(lanes: list[tuple[Line, Line]], height: int) -> list[Line]:
     """Combines the lines of each lane to produce a single center line for each.
@@ -74,7 +74,7 @@ def angle_from_line(line: Line, angle_tol: int = 5) -> float:
 
 
 def movement_from_line(
-    line: Line, width: int, forward_tol: int = 50
+    line: Line, width: int, forward_tol: int = 100
 ) -> tuple[float, float]:
     """Returns the suggestion of movement from a line.
 
@@ -116,7 +116,7 @@ def movement_from_line(
 
 
 def error_from_line(
-    line: Line, width: int, forward_tol: int = 50, angle_tol: int = 5
+    line: Line, width: int, forward_tol: int = 100, angle_tol: int = 5
 ) -> tuple[str, str]:
     """Suggests which direction the AUV should move in based off a line.
 
