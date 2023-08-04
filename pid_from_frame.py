@@ -50,12 +50,12 @@ def line_from_frame(
         center_line = pick_center_line(center_lines, width)  # find the closest lane
         print(f"{center_lines = }, {center_line = }")
 
-        cv2.imwrite("testing/bw.jpg", bw)
-        cv2.imwrite("testing/edges.jpg", edges)
-        cv2.imwrite("testing/lines.jpg", draw_lines(frame, lines, offset=True))
-        cv2.imwrite("testing/merged.jpg", draw_lines(frame, merged_lines, offset=True))
-        cv2.imwrite("testing/lanes.jpg", draw_lanes(frame, lanes, offset=True))
-        cv2.imwrite("testing/center.jpg", draw_lines(frame, center_lines, offset=True))
+        # cv2.imwrite("testing/bw.jpg", bw)
+        # cv2.imwrite("testing/edges.jpg", edges)
+        # cv2.imwrite("testing/lines.jpg", draw_lines(frame, lines, offset=True))
+        # cv2.imwrite("testing/merged.jpg", draw_lines(frame, merged_lines, offset=True))
+        # cv2.imwrite("testing/lanes.jpg", draw_lanes(frame, lanes, offset=True))
+        # cv2.imwrite("testing/center.jpg", draw_lines(frame, center_lines, offset=True))
 
     return center_line
 
@@ -96,7 +96,7 @@ def pid_from_line(
 
 def draw_frame(frame, center_line, longitudinal, lateral, yaw):
     yaw_degs = np.rad2deg(yaw)
-    if longitudinal == 100:
+    if longitudinal == forward_power:
         text = f"Move forward: {longitudinal:.2f} | Turn: {yaw_degs:.2f}"
     elif lateral != 0:
         text = f"Move lateral: {lateral:.2f}% | Turn: {yaw_degs:.2f}"

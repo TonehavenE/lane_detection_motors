@@ -14,11 +14,11 @@ print("Main started!")
 
 # Create the video objectE
 video = Video()
-FPS = 2
+FPS = 5
 RC_SLEEP = 0.1
 
 # Create the PID object
-PIDLateral = PID(50, 0, -6, 100)
+PIDLateral = PID(50, 0, -5, 100)
 PIDLongitudinal = PID(50, 0, 0, 100)
 PIDYaw = PID(30, 0, 0, 100)
 # Create the mavlink connection
@@ -38,7 +38,8 @@ frame_available.set()
 longitudinal_power = 0
 lateral_power = 0
 yaw_power = 0
-
+crop_x = slice(20, -1)
+crop_y = slice(20, -1)
 
 def _get_frame():
     global frame
@@ -56,12 +57,18 @@ def _get_frame():
         while True:
             if video.frame_available():
                 frame = video.frame()
-                print("frame found")
-                # cv2.imwrite("camera_stream.jpg", frame)
-                # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                # print("frame found")
+                cv2.imwrite("camera_stream.jpg", frame)
                 if type(frame) == np.ndarray:
                     try:
-                        center_line = line_from_frame(frame[20 : -1, 20 : -1], x_intercept_tolerance=25, lanes_x_tolerance = 300, lanes_y_tolerance = 100, lanes_darkness_threshold=10)
+                        center_line = line_from_frame(
+                            frame[crop_x, crop_y],
+                            x_intercept_tolerance=25,
+                            lanes_x_tolerance=300,
+                            lanes_y_tolerance=100,
+                            lanes_darkness_threshold=10,
+                        )
+                        # cv2.imwrite("testing/center.jpg", draw_lines(frame, center_lines, offset=True))
                         center_lines.append(center_line)
                         if len(center_lines) > window_frame_count:
                             center_lines.pop(0)
@@ -69,16 +76,14 @@ def _get_frame():
                         if center_lines.count(None) > 5:
                             print("No lines found in last 5 images. ")
                             yaw_power = 10  # %
-                            lateral_power = 0
-                            longitudinal_power = 0
-                            # continue
+                            lateral_power = 0 # %
+                            longitudinal_power = 0 # %
+                            continue
                         else:
                             good_lines = list(
                                 filter(lambda line: line is not None, center_lines)
                             )
-                            if len(good_lines) > 1:
-                                # print(good_lines)
-                                # print(len(good_lines) // 2)
+                            if len(good_lines) > 0:
                                 good_lines.sort(key=lambda x: x.slope)
                                 middle_line = good_lines[len(good_lines) // 2]
                                 (
@@ -92,21 +97,10 @@ def _get_frame():
                                     PIDYaw,
                                     frame.shape[1],
                                 )
-                                if output_path != "":
-                                    cv2.imwrite(
-                                        f"{output_path}{count}.jpg",
-                                        draw_frame(
-                                            frame,
-                                            middle_line,
-                                            longitudinal_power,
-                                            lateral_power,
-                                            yaw_power,
-                                        ),
-                                    )
                         print(f"{yaw_power = }")
                         print(f"{longitudinal_power = }")
                         print(f"{lateral_power = }")
-                        cv2.imwrite(f"frames/frame{count}.jpg", video_maker.render_frame(frame))
+
                     except Exception as e:
                         print(f"caught: {e}")
                         yaw_power = 0
@@ -147,8 +141,8 @@ def main():
     video_thread.start()
 
     # # Start the RC thread
-    rc_thread = Thread(target=_send_rc)
-    rc_thread.start()
+    # rc_thread = Thread(target=_send_rc)
+    # rc_thread.start()
 
     # Main loop
     try:
@@ -156,7 +150,7 @@ def main():
             mav_comn.wait_heartbeat()
     except KeyboardInterrupt:
         video_thread.join()
-        rc_thread.join()
+        # rc_thread.join()
         bluerov.set_lights(False)
         bluerov.disarm()
         print("Exiting...")

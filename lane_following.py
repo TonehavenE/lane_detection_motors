@@ -4,6 +4,7 @@ import numpy as np
 
 from Line import *
 
+forward_power = 0.3 # 30%
 
 def merge_lane_lines(lanes: list[tuple[Line, Line]], height: int) -> list[Line]:
     """Combines the lines of each lane to produce a single center line for each.
@@ -109,7 +110,7 @@ def movement_from_line(
     else:
         # the lane center is in the middle region
         lateral = 0
-        longitudinal = 100
+        longitudinal = forward_power
 
     return (longitudinal, lateral)
 
