@@ -97,6 +97,7 @@ def _get_frame():
                                     PIDYaw,
                                     frame.shape[1],
                                 )
+                                print("Found a line!")
                         print(f"{yaw_power = }")
                         print(f"{longitudinal_power = }")
                         print(f"{lateral_power = }")
